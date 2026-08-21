@@ -200,6 +200,8 @@ For every completed test execution, record:
 
 ## Test Case Inventory
 
+> **Inventory status note:** The following inventory preserves the original planned test matrix. Its historical `NOT RUN` values are not final execution results. For the current submission, use the Final Step 14, Step 14A, and Step 14C execution sections above: 35 executable tests passed, and 38 PostgreSQL/Testcontainers tests were not executed because Docker was unavailable.
+
 | Test ID | Requirement ID | Scenario | Test Type | Description | Status |
 |---------|----------------|----------|-----------|-------------|--------|
 | T-A-001 | REQ-A-001, REQ-A-009 | Scenario A — Write | Integration | Valid audit event is created and persisted | NOT RUN |

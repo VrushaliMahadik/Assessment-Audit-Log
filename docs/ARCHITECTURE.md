@@ -7,7 +7,7 @@
 
 ## 1. Purpose
 
-This document translates the approved requirements from `docs/REQUIREMENT-ANALYSIS.md` into a proposed technical architecture for the Audit Log Service before any implementation begins.
+This document translates the approved requirements from `docs/REQUIREMENT-ANALYSIS.md` into the technical architecture implemented by the Audit Log Service. Early proposal alternatives remain in place as historical design context.
 
 It serves as the design contract between the requirements phase and the implementation phase. All major components, flows, and boundaries are defined here so that implementation can proceed with a clear, reviewable plan.
 
@@ -64,8 +64,8 @@ Service / Domain Layer
 (Audit logic, hash computation, chain management, verification, retention, redaction, export)
      │
      ▼
-Persistence Layer
-(Spring Data repositories, query building, transactional behaviour)
+  Persistence Layer
+(Spring JDBC repository, parameterized query building, transactional behaviour)
      │
      ▼
 PostgreSQL
@@ -75,7 +75,7 @@ PostgreSQL
 **Layer responsibilities:**
 
 - **REST API Layer** — translates HTTP requests into domain operations. Performs structural input validation. Returns well-formed HTTP responses. Does not contain business logic.
-- **Security Layer** — intercepts all requests, enforces authentication and authorisation before the controller is reached. Details PENDING (see Section 15).
+- **Security Layer** — intercepts all requests, enforces stateless JWT authentication and role-based authorization before the controller is reached.
 - **Service / Domain Layer** — owns all business rules: hash computation, chain linking, append-only enforcement, verification, and orchestration of Scenario B operations.
 - **Persistence Layer** — abstracts database access. Responsible for transactional writes, filter-based queries, and pagination.
 - **PostgreSQL** — provides durable, ACID-compliant storage.
@@ -128,7 +128,7 @@ Responsibilities:
 
 ### 4.5 PostgreSQL
 
-Provides durable, ACID-compliant storage for audit events. Schema design is PENDING (dependent on open decisions: record ID type OD-15, sequence field OD-05, timestamp ownership OD-01).
+Provides durable, ACID-compliant storage for audit events. The implemented schema is created by Flyway migrations V1 and V2 and accessed through `AuditEventRepository` using Spring JDBC.
 
 ---
 
@@ -141,14 +141,14 @@ src/main/java/com/vrushali/auditlog/
     controller/      ← REST controllers (API Layer)
     dto/             ← Request and response objects (no JPA annotations)
     service/         ← Business logic, hash computation, verification, Scenario B
-    repository/      ← Spring Data JPA interfaces
-    entity/          ← JPA entities (audit event record)
+    repository/      ← Spring JDBC repository implementations
+    model/           ← Audit event domain model
     exception/       ← Custom exceptions and global exception handler
     validation/      ← Custom validators for request inputs
     security/        ← Authentication/authorisation configuration and filters
 ```
 
-> **Proposed structure — implementation will follow after design approval.**
+> **Implemented structure:** The repository uses the packages shown above; it does not use Spring Data JPA or Hibernate entities.
 
 `dto/` and `entity/` are intentionally separated so that the persistence model is not leaked to the API layer and the domain layer can evolve independently.
 

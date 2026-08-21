@@ -7,7 +7,7 @@
 
 The approved requirement analysis states that Scenario C concerns audit logging for a specific access or activity context, but leaves its details open. This document resolves those details using the requested decision policy: prefer existing requirements and designs, choose the smallest compatible behavior, and document each assumption.
 
-The controlling source is `docs/REQUIREMENT-ANALYSIS.md`, Section 6. The related architecture, API contract, database design, and testing evidence documents agree that Scenario C has no approved implementation contract yet.
+The controlling source is `docs/REQUIREMENT-ANALYSIS.md`, Section 6. The original assessment documents left Scenario C open; this document records the conservative normalized requirement now implemented.
 
 ## Ambiguity
 
@@ -31,7 +31,7 @@ The unresolved questions are:
 3. Add a reporting endpoint over existing audit records.
 4. Add a dedicated client-account audit model with separate retention and authorization rules.
 
-None of these interpretations is approved by the repository documentation. Choosing one would invent business behavior and could create an incompatible API, schema, or security contract.
+These were the original interpretation options. The selected interpretation below is the documented conservative implementation decision.
 
 ## Selected Interpretation
 
@@ -41,8 +41,8 @@ Failed access attempts are not recorded because implementing that behavior would
 
 ## Assumptions
 
-- The existing Scenario A and Scenario B audit-event model remains the foundation for any future Scenario C work.
-- Existing authentication, authorization, PostgreSQL schema, migrations, DTO conventions, and error handling will be reused after the requirement is approved.
+- The existing Scenario A and Scenario B audit-event model is the foundation for Scenario C.
+- Existing authentication, authorization, PostgreSQL schema, migrations, DTO conventions, and error handling are reused.
 - No new database structure, retention policy, redaction rule, or reporting permission is required by the selected interpretation.
 - Existing Scenario A and Scenario B behavior must remain unchanged.
 
@@ -60,7 +60,7 @@ The original questions are resolved for this implementation by the decisions bel
 
 - Preserve the approved ambiguity and open questions.
 - Record the interpretation and implementation boundary in this design document.
-- Define the future design inputs needed before coding.
+- Define the implementation decisions and their consequences.
 - Record the selected behavior and its implementation consequences.
 
 ### Out of Scope
@@ -80,17 +80,16 @@ SERVICE and ADMIN callers are authorized to submit access records. `actorId` ide
 ### Workflow
 
 ```text
-Clarify C-Q-01 through C-Q-12
-  -> approve normalized requirement
-  -> update requirement, architecture, API, and database documents
-  -> implement the smallest approved extension
+Resolve C-Q-01 through C-Q-12 using documented assumptions
+  -> approve normalized requirement for this implementation
+  -> implement the smallest compatible extension
   -> add unit, API, authorization, and database tests
   -> run regression and Scenario C validation
 ```
 
 ### Components
 
-No components are added. The future implementation should use the existing Controller -> Service -> Repository -> PostgreSQL path unless the approved requirement demonstrates that an interceptor or asynchronous integration is necessary.
+No separate Scenario C components are added. The endpoint uses the existing Controller -> Service -> Repository -> PostgreSQL path.
 
 ### API Design
 
@@ -102,19 +101,19 @@ No components are added. The future implementation should use the existing Contr
 
 ### Database Impact
 
-No migration or schema change is justified. The required data scope, event types, filters, retention, and redaction behavior are unknown.
+No migration or schema change is required; the existing `audit_event` schema stores the fixed event/resource values and structured payload.
 
 ### Security and Authorization
 
-No new authorization rule is added. The actors, reporting audience, and privilege level are unresolved. Existing protected endpoints remain unchanged.
+The Scenario C endpoint uses the existing `SERVICE`/`ADMIN` write authorities and existing `AUDITOR`/`ADMIN` read authorities. No new role or authentication mechanism is added.
 
 ### Transaction Considerations
 
-No new transaction is introduced. Future transaction boundaries depend on whether Scenario C records direct API activity, security decisions, or report generation.
+No separate transaction is introduced. The service delegates to the existing transactional chain append path.
 
 ### Error Handling
 
-No new error contract is defined. Validation and error responses must be specified after the required API or interception point is selected.
+The endpoint uses the existing validation and safe error response conventions; invalid access types return 400 and unauthenticated/unauthorized callers receive 401/403.
 
 ### Testing Strategy
 
@@ -193,23 +192,23 @@ The table below records the initial decision space. The final decisions below su
 
 ### API
 
-No endpoint can be selected yet. Resolving the questions may require extending the existing event-ingestion API, adding a reporting endpoint, adding access-outcome filters to the existing query model, or adding a separate export/report contract. Request fields, response fields, status codes, and authorization rules remain undefined until the decisions are approved.
+The implemented endpoint is `POST /api/v1/audit/client-account-access`. It accepts actor ID, client-account resource ID, `READ`/`WRITE` access type, and optional details; it returns the existing audit response with fixed event/resource metadata.
 
 ### Database
 
-No database change is implied yet. Depending on the decisions, the existing `audit_event` columns may be sufficient, or a migration may be needed for access outcome, actor category, source, client-account scope, retention metadata, redaction metadata, constraints, or indexes. No table or column should be added before the normalized requirement identifies a data need.
+No database change is required. Existing `audit_event` columns and Scenario B metadata are sufficient.
 
 ### Business Logic
 
-The future service behavior depends on whether events are emitted by direct API calls, security decisions, reports, or multiple sources. The final design may require access classification, outcome validation, actor and resource scope checks, report filtering, retention/redaction policy selection, duplicate handling, and transaction boundaries. None of these workflows is approved yet.
+The service maps the request to the existing append flow, fixes the event type and resource type, records `SUCCESS`, validates `READ`/`WRITE`, and preserves existing transaction and chain behavior.
 
 ### Security
 
-Existing JWT authentication and role-based authorization remain unchanged. Scenario C decisions must identify the actors, reporting audiences, and permissions before any new authority or endpoint rule is added. No external audience or privileged role is assumed.
+Existing JWT authentication and role-based authorization remain unchanged. `SERVICE`/`ADMIN` may record events and `AUDITOR`/`ADMIN` may query them; no external audience is introduced.
 
 ### Testing
 
-After decisions are approved, the test plan should include unit tests for event classification and validation; API tests for request and response contracts; database integration tests for persistence, filtering, retention, and redaction where applicable; security tests for authentication, authorization, and data scope; and regression tests for Scenario A and Scenario B. No Scenario C test can be made executable before the behavior is defined.
+Tests cover event classification, validation, authorization, service mapping, PostgreSQL persistence, query visibility, and chain verification. The six PostgreSQL integration tests are documented as not executed locally due to Docker unavailability.
 
 ## Decisions Required From Vrushali
 

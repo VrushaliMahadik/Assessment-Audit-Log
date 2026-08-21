@@ -1,17 +1,26 @@
 # API Contract — Audit Log Service
 
 **Engineer:** Vrushali Mahadik  
-**Status:** Proposed contract — design document only. No controllers, DTOs, or services are implemented here.
+**Status:** Implemented API contract. Historical proposal notes and alternatives are retained where useful for traceability.
 
 ---
 
 ## 1. Purpose
 
-This document defines the REST API contract for the Audit Log Service before any controller or service implementation begins.
+This document defines the REST API contract implemented by `AuditEventController`, its DTOs, and `AuditEventService`.
 
 The contract is derived from the assessment requirements, `docs/REQUIREMENT-ANALYSIS.md`, `docs/ARCHITECTURE.md`, and `docs/DATABASE-DESIGN.md`. It establishes agreed endpoint paths, request/response shapes, status codes, and validation rules that implementation must honour.
 
-Unresolved design decisions are preserved as open. Nothing has been silently finalised.
+Historical unresolved decisions are preserved as proposal history. The implemented decisions are summarized below and are authoritative for the running application.
+
+### Final Implemented Contract
+
+- Base path: `/api/v1/audit`.
+- Pagination: offset-based `page` and `size`, default size 20, maximum size 100.
+- Ordering: `sequence_number ASC`.
+- Authentication: stateless OAuth2/JWT resource server.
+- Authorization: `SERVICE`/`ADMIN` for writes, `AUDITOR`/`ADMIN` for reads, `ADMIN` for verification and Scenario B administration.
+- Persistence and hash verification use the PostgreSQL/Flyway implementation described in `docs/DATABASE-DESIGN.md`.
 
 ---
 
@@ -38,14 +47,14 @@ This document retains early proposal notes for traceability. The implemented bas
 
 ## 3. API Base Path
 
-**Proposed base path:** `/api/v1`
+**Implemented base path:** `/api/v1`
 
 > **Engineering proposal — not an explicit assessment requirement.**  
 > Versioning the base path (`/v1`) allows a future `/v2` without breaking existing consumers. If the assessment specifies a different path, this must be updated.
 
 Full endpoint examples therefore read as: `POST /api/v1/audit/events`
 
-If no versioning is required, the base path simplifies to `/audit`. This is **OPEN** — final base path is a **PENDING ENGINEERING DECISION**.
+The unversioned `/audit` alternative is historical proposal context and is not part of the implemented API.
 
 ---
 
@@ -65,7 +74,7 @@ Record a new tamper-evident audit event. The service computes the `contentHash` 
 
 **Required role: `SERVICE`** (or equivalent write-permitted role).  
 Authenticated callers without the required role receive `403 Forbidden`.  
-Final authorisation matrix is **PENDING (OD-12)**.
+The final authorization matrix is enforced by `SecurityConfig` as summarized in the Final Implemented Contract.
 
 #### Request Body
 
@@ -153,7 +162,7 @@ Query audit events with optional filters. Returns a paginated, deterministically
 #### Authorisation
 
 **Required role: `AUDITOR`** (or equivalent read-permitted role).  
-Final authorisation matrix is **PENDING (OD-12)**.
+The final authorization matrix is enforced by `SecurityConfig` as summarized in the Final Implemented Contract.
 
 #### Supported Query Parameters
 
@@ -174,10 +183,10 @@ All parameters are optional and combinable (REQ-A-020). Filters are AND-combined
 
 #### Pagination
 
-- **Strategy:** Offset-based (`page` / `size`) — **PENDING FINAL DECISION (OD-13)**. Cursor-based pagination is an alternative if offset-based proves impractical for large datasets.
+  - **Strategy:** Offset-based (`page` / `size`) — implemented. Cursor-based pagination remains a future alternative, not part of this contract.
 - **Default page size:** `20`
 - **Maximum page size:** `100` (engineering proposal — not an explicit assessment value)
-- **Ordering:** Deterministic — `ORDER BY timestamp ASC` or `ORDER BY sequenceNumber ASC` — **PENDING (OD-14)**
+- **Ordering:** `ORDER BY sequence_number ASC` — implemented.
 
 #### Response — 200 OK
 

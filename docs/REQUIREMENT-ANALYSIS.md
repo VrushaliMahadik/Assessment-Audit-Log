@@ -2,7 +2,18 @@
 
 **Project:** Audit Log Service  
 **Engineer:** Vrushali Mahadik  
-**Status:** In Progress — Requirements analysed; implementation not yet started.
+**Status:** Requirements analysed and implemented; historical proposal and decision records are preserved below.
+
+> **Final implementation note:** The requirement statements and original ambiguity records remain unchanged in meaning. The implemented decisions and validation status are summarized here and detailed in the architecture, API, database, Scenario C, and testing documents.
+
+### Final Implementation Status
+
+- Scenario A core audit creation, persistence, querying, pagination, deterministic ordering, hash chaining, verification, and tamper detection are implemented.
+- Scenario B retention, structured redaction, bulk export, and admin authorization are implemented.
+- Scenario C is implemented using the conservative decisions recorded in `docs/SCENARIO-C-DESIGN.md`.
+- OAuth2/JWT resource-server authentication and role-based authorization are implemented.
+- PostgreSQL schema management uses Flyway V1 and V2 migrations with Spring JDBC persistence.
+- Testing evidence records 35 executable tests passed, 0 failures, 0 errors, and 38 PostgreSQL/Testcontainers tests not executed because Docker was unavailable.
 
 ---
 
@@ -181,6 +192,8 @@ A verification endpoint must be able to walk the entire chain, recompute each co
 
 ## 6. Scenario C
 
+> **Final status:** The original clarification questions below are historical source material. Scenario C was resolved and implemented using the final decisions in `docs/SCENARIO-C-DESIGN.md`; it is no longer pending for the current implementation.
+
 ### Statement of Ambiguity
 
 Scenario C is not fully specified in the assessment. The scenario involves audit logging for a specific access or activity context, but the following questions are unresolved and require clarification before design can proceed.
@@ -214,11 +227,13 @@ Ambiguous requirement
             → Test evidence
 ```
 
-Until clarification is received, Scenario C requirements are **PENDING CLARIFICATION** and will not be implemented.
+The original assessment wording left Scenario C pending clarification. That historical state was resolved through documented assumptions and a normalized requirement; the current implementation records successful READ/WRITE client-account access through the dedicated Scenario C endpoint.
 
 ---
 
 ## 7. Authentication and Authorization
+
+> **Final implementation:** JWT resource-server authentication is configured through `SecurityConfig`. `SERVICE` and `ADMIN` may write, `AUDITOR` and `ADMIN` may query, and `ADMIN` is required for verification, retention, redaction, and export. The original pending labels in the requirement tables are retained as historical decision-state records.
 
 ### Assessment Requirement vs. Production Enhancement
 

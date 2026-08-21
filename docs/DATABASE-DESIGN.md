@@ -1,15 +1,15 @@
 # Database Design — Audit Log Service
 
 **Engineer:** Vrushali Mahadik  
-**Status:** Proposed — design document only. No database has been created. Implementation follows after review.
+**Status:** Implemented PostgreSQL design with historical proposal alternatives preserved.
 
 ---
 
 ## 1. Purpose
 
-This document defines the proposed PostgreSQL database design for the Audit Log Service before any database implementation begins.
+This document defines the PostgreSQL database design implemented by the Audit Log Service.
 
-It serves as the design contract between the architecture phase and the implementation phase. All table structures, field definitions, indexes, constraints, and design decisions are documented here so that Flyway migrations and JPA entities can be written with a clear, reviewed foundation.
+It serves as the database contract for the Flyway migrations and Spring JDBC repository. Historical alternatives remain labeled as proposal context.
 
 **Design history note:** This document records the original database design decisions and alternatives. The implemented PostgreSQL schema is maintained by the Flyway migrations under `src/main/resources/db/migration`; the current implementation uses UUID IDs, a BIGSERIAL `sequence_number`, JSONB payloads, Scenario B retention/redaction columns, and the indexes verified by the database integration tests when Docker is available.
 
@@ -20,8 +20,8 @@ It serves as the design contract between the architecture phase and the implemen
 | Component | Choice | Reason |
 |-----------|--------|--------|
 | Database | **PostgreSQL** | Explicitly required by the assessment |
-| Access | Spring Data JPA + Hibernate | Standard Spring Boot persistence stack |
-| Migrations | Flyway (proposed) | Versioned, reproducible schema management |
+| Access | Spring JDBC / `JdbcTemplate` | Matches `AuditEventRepository` and parameterized SQL |
+| Migrations | Flyway | Versioned, reproducible schema management |
 | Runtime | Java 21 | Approved — AI-001 |
 | Framework | Spring Boot 3.3.4 | Project baseline |
 | Build | Maven | Project baseline |
@@ -52,11 +52,11 @@ Every goal below is supported by an explicit requirement or architectural decisi
 
 ## 4. Audit Event Table
 
-**Proposed table name:** `audit_event`
+**Implemented table:** `audit_event`
 
 | Column | Purpose | Proposed Type | Nullable | Source |
 |--------|---------|---------------|----------|--------|
-| `id` | Unique record identifier | `UUID` or `BIGSERIAL` — **PENDING OD-15** | NOT NULL | Engineering |
+| `id` | Unique record identifier | `UUID` | NOT NULL | Implemented V1 schema |
 | `event_type` | Classification of the event | `VARCHAR(255)` | NOT NULL | REQ-A-002 |
 | `actor_id` | Identity of the actor | `VARCHAR(255)` | NOT NULL | REQ-A-003 |
 | `resource_type` | Type of the affected resource | `VARCHAR(255)` | NOT NULL | REQ-A-004 |
@@ -65,15 +65,15 @@ Every goal below is supported by an explicit requirement or architectural decisi
 | `timestamp` | Logical event time (server-assigned) | `TIMESTAMPTZ` | NOT NULL | REQ-A-007 |
 | `content_hash` | Cryptographic hash of auditable fields | `VARCHAR(128)` | NOT NULL | REQ-A-010 |
 | `previous_hash` | `content_hash` of the preceding record | `VARCHAR(128)` | NOT NULL | REQ-A-011 |
-| `sequence_number` | Monotonic ordering field | `BIGINT` — **PROPOSED, OD-05** | NOT NULL (if adopted) | Engineering — chain ordering |
-| `created_at` | Server-controlled DB insertion time | `TIMESTAMPTZ` — **PROPOSED** | NOT NULL (if adopted) | Engineering — audit trail precision |
+| `sequence_number` | Monotonic ordering field | `BIGSERIAL` / `BIGINT` | NOT NULL | Implemented V1 schema |
+| `created_at` | Server-controlled DB insertion time | `TIMESTAMPTZ` | NOT NULL | Implemented V1 schema |
 
 **Notes on proposed engineering fields:**
 
 - `sequence_number` — proposed to provide unambiguous chain ordering independent of timestamp precision. Required if OD-05 resolves to sequence-based ordering.
 - `created_at` — server-set `DEFAULT NOW()` column distinct from the logical `timestamp`. Not an explicit assessment requirement; proposed for operational traceability.
 
-Both proposed fields must be reviewed and approved before schema implementation.
+Both fields are present in the implemented V1 migration and are used by repository queries and chain verification.
 
 ---
 
@@ -89,7 +89,7 @@ Both proposed fields must be reviewed and approved before schema implementation.
 
 **Ordering implication:** If `BIGSERIAL` is chosen, it doubles as a natural ordering column. If `UUID` is chosen, a separate `sequence_number` column (or `created_at` with sufficient precision) is needed to define unambiguous chain order.
 
-**PENDING DESIGN DECISION (OD-15).** No primary key type is finalised.
+**Implemented decision:** The primary key is an application-generated UUID. `sequence_number` provides independent monotonic chain ordering.
 
 ---
 
@@ -101,8 +101,8 @@ Both proposed fields must be reviewed and approved before schema implementation.
 |---------|---------------------|
 | Timezone | `TIMESTAMPTZ` stores with UTC offset — always normalise to UTC on insert |
 | Precision | PostgreSQL `TIMESTAMPTZ` supports microsecond precision |
-| Ownership | Server-assigned — the application sets this value, not the client. **PENDING final approval (OD-01)** |
-| Canonicalisation | For hash computation, timestamp must be serialised in a fixed canonical format (ISO-8601 UTC, e.g. `2026-08-21T10:00:00.000000Z`) — **OD-03 PENDING** |
+| Ownership | Server-assigned by the application |
+| Canonicalisation | ISO-8601 UTC with microsecond precision for hashing |
 | Collision risk | Microsecond timestamps can still collide under high concurrency. A `sequence_number` column (OD-05) eliminates this risk as the authoritative ordering field |
 
 **`created_at` (proposed):** A second `TIMESTAMPTZ DEFAULT NOW()` column set by the database at INSERT time, not overridable by the application. Useful for operational queries independent of business timestamp.
@@ -138,11 +138,11 @@ The hash chain is encoded directly in the `audit_event` table via two columns:
 | `content_hash` | Hash of this record's own auditable fields. Computed by the application before INSERT. Never updated after insert. |
 | `previous_hash` | Hash of the immediately preceding record. Sourced from the previous record's `content_hash`. First record uses the genesis value. |
 
-**Genesis value:** The `previous_hash` of the first record ever inserted. Exact value is **PENDING (OD-04)** — candidates: fixed string `"GENESIS"`, 64 zero characters, or a well-known constant.
+**Implemented genesis value:** 64 zero characters, defined by `HashService.GENESIS`.
 
 **Tamper detection:** If any stored field is modified after INSERT (directly in the database), recomputing `content_hash` from the stored fields will produce a different value. The application's verification walk will detect the mismatch.
 
-**Hash algorithm: PENDING (OD-02)** — SHA-256 or SHA-3-256 under consideration.
+**Implemented hash algorithm:** SHA-256.
 
 ---
 
