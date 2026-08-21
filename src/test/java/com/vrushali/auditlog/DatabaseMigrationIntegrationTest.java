@@ -60,7 +60,9 @@ class DatabaseMigrationIntegrationTest {
         assertThat(columns).contains(
             "id", "event_type", "actor_id", "resource_type", "resource_id",
             "payload", "timestamp", "content_hash", "previous_hash",
-            "sequence_number", "created_at");
+            "sequence_number", "created_at", "archived_at", "is_redacted",
+            "redacted_at", "redacted_fields", "original_payload",
+            "redacted_content_hash");
     }
 
     @Test

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.util.List;
@@ -22,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ExtendWith(MockitoExtension.class)
 class ScenarioBServiceTest {
@@ -53,7 +55,8 @@ class ScenarioBServiceTest {
 
         service.redactEvent(id, List.of("ssn"));
 
-        verify(repository).redactPayloadFields(eq(id), anyString(), eq(new String[] {"ssn"}), any(Instant.class));
+        verify(repository).redactPayloadFields(eq(id), anyString(), any(),
+            eq(new String[] {"ssn"}), any(Instant.class));
     }
 
     @Test
@@ -82,5 +85,14 @@ class ScenarioBServiceTest {
 
         assertThat(export).containsKey("records");
         assertThat(export.get("records")).isInstanceOf(List.class);
+    }
+
+    @Test
+    void exportEvents_rejectsResultsOverConfiguredLimit() {
+        ReflectionTestUtils.setField(service, "maxExportRecords", 1);
+        when(repository.findAllForExport(any())).thenReturn(List.of(new AuditEvent(), new AuditEvent()));
+
+        assertThatThrownBy(() -> service.exportEvents("user-1", null))
+            .isInstanceOf(com.vrushali.auditlog.exception.ExportLimitExceededException.class);
     }
 }

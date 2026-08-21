@@ -148,6 +148,46 @@
 
 ---
 
+**ID:** AI-020
+**Date:** 2026-08-21
+**Prompt:** Fix the redaction and hash-chain integrity contradiction so legitimate redaction remains verifiable while tampering remains detectable.
+**Summary:** Added V3 original-payload preservation and a redacted-content hash, updated verification and repository redaction handling, added four focused integrity tests, reconciled affected documentation, and verified 39 executable tests passed with 0 failures/errors while 38 PostgreSQL/Testcontainers tests remained unexecuted because Docker was unavailable.
+**Decision:** MODIFY
+
+---
+
+**ID:** AI-021
+**Date:** 2026-08-21
+**Prompt:** Remove default database credentials while keeping local development and test configuration usable.
+**Summary:** Removed runtime datasource username/password fallbacks, made Docker Compose development credentials explicitly required environment variables, documented required setup variables, and verified 39 Docker-independent tests passed with 0 failures/errors.
+**Decision:** MODIFY
+
+---
+
+**ID:** AI-022
+**Date:** 2026-08-21
+**Prompt:** Add JaCoCo coverage evidence to the Maven build and document the actual measured coverage without changing application behavior.
+**Summary:** Configured JaCoCo for the Maven verify lifecycle, generated HTML/XML/CSV reports, measured 65.14% line coverage and 39.29% branch coverage across `src/main/java`, updated testing documentation and README, and preserved the truthful Docker-dependent test limitation.
+**Decision:** MODIFY
+
+---
+
+**ID:** AI-023
+**Date:** 2026-08-21
+**Prompt:** Perform focused security hardening and abuse-control review without changing required API or business behavior.
+**Summary:** Added a configurable export record cap with safe 413 handling, bounded redaction-field validation, and focused authorization/abuse-control tests. Full verification passed with 41 executable tests, 0 failures/errors, and 38 Docker-dependent tests unexecuted; refreshed JaCoCo coverage was 64.71% line and 40.91% branch.
+**Decision:** MODIFY
+
+---
+
+**ID:** AI-024
+**Date:** 2026-08-21
+**Prompt:** Review whether client/account resource ownership authorization is defined and implement only a requirements-supported access-control fix.
+**Summary:** Reviewed the ownership requirements, JWT claim handling, controllers, services, repositories, and authorization tests. Confirmed that no ownership mapping or account-scoping claim is defined, so no speculative cross-account authorization was added; documented the explicit role-based ownership boundary in `docs/SCENARIO-C-DESIGN.md`.
+**Decision:** MODIFY
+
+---
+
 ## Template for New Entries
 
 **ID:** AI-XXX

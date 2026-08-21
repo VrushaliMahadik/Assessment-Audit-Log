@@ -77,6 +77,10 @@ The original questions are resolved for this implementation by the decisions bel
 
 SERVICE and ADMIN callers are authorized to submit access records. `actorId` identifies the actor or subject represented by the event; the authenticated caller remains constrained by the existing JWT authority rules. AUDITOR and ADMIN callers may query the resulting events.
 
+### Ownership Boundary
+
+The approved requirements do not define an account-owner relationship, an account-scoping JWT claim, or a policy mapping authenticated users to `resourceId` values. The current implementation therefore enforces role-based access only: `SERVICE`/`ADMIN` may record events, and `AUDITOR`/`ADMIN` may query audit data. `actorId` and `resourceId` are audit fields, not independently trusted ownership proofs. Adding cross-account filtering would require an explicit ownership claim and policy that are not present in the requirements, so no speculative row-level authorization was added.
+
 ### Workflow
 
 ```text
@@ -151,7 +155,7 @@ No different retention period or legal hold requirement is stated. Scenario C re
 
 ### C-Q-08 — Reuse Scenario B redaction
 
-No different redaction policy is stated. Existing ADMIN-only structured redaction and its documented hash trade-off apply to Scenario C records.
+No different redaction policy is stated. Existing ADMIN-only structured redaction applies to Scenario C records; the original payload remains integrity-verifiable while the redacted representation is separately authenticated.
 
 ### C-Q-09 — Use the existing query API for reporting
 

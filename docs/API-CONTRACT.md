@@ -400,11 +400,11 @@ PATCH /audit/events/{id}/redact
   "redactedFields": ["ipAddress", "userAgent"],
   "redactedAt": "2026-08-21T11:00:00.000000Z",
   "contentHash": "e3b0c44298fc1c149afb...",
-  "note": "Original contentHash was computed before redaction. Hash verification for this record reflects the redaction trade-off (see DATABASE-DESIGN.md §16)."
+  "note": "The original contentHash remains verifiable from the preserved original payload; the redacted representation is verified separately."
 }
 ```
 
-**This endpoint is an ENGINEERING PROPOSAL.** The exact path, request shape, and verification behaviour after redaction are **OPEN (OD-09)**.
+The endpoint is implemented at `PATCH /api/v1/audit/events/{id}/redact`. Redaction preserves the original payload internally, returns the redacted payload, and verification checks both the original content hash and the redacted-content hash.
 
 ---
 

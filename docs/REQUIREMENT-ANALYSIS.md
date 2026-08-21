@@ -13,7 +13,7 @@
 - Scenario C is implemented using the conservative decisions recorded in `docs/SCENARIO-C-DESIGN.md`.
 - OAuth2/JWT resource-server authentication and role-based authorization are implemented.
 - PostgreSQL schema management uses Flyway V1 and V2 migrations with Spring JDBC persistence.
-- Testing evidence records 35 executable tests passed, 0 failures, 0 errors, and 38 PostgreSQL/Testcontainers tests not executed because Docker was unavailable.
+- Testing evidence records 39 executable tests passed, 0 failures, 0 errors, and 38 PostgreSQL/Testcontainers tests not executed because Docker was unavailable.
 
 ---
 

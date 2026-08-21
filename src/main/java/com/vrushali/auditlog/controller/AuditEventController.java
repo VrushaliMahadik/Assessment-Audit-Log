@@ -69,7 +69,7 @@ public class AuditEventController {
     @PatchMapping("/events/{id}/redact")
     public ResponseEntity<AuditEventResponse> redactEvent(
         @PathVariable UUID id,
-        @RequestBody RedactAuditEventRequest request) throws Exception {
+        @Valid @RequestBody RedactAuditEventRequest request) throws Exception {
         return ResponseEntity.ok(service.redactEvent(id, request.getFields()));
     }
 

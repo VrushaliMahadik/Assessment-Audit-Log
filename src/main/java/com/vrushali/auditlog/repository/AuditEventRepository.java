@@ -27,6 +27,7 @@ public class AuditEventRepository {
         e.setResourceType(rs.getString("resource_type"));
         e.setResourceId(rs.getString("resource_id"));
         e.setPayload(rs.getString("payload"));
+        e.setOriginalPayload(rs.getString("original_payload"));
         Timestamp ts = rs.getTimestamp("timestamp");
         e.setTimestamp(ts != null ? ts.toInstant() : null);
         e.setContentHash(rs.getString("content_hash"));
@@ -42,6 +43,7 @@ public class AuditEventRepository {
         e.setRedactedAt(rat != null ? rat.toInstant() : null);
         Array rfArr = rs.getArray("redacted_fields");
         e.setRedactedFields(rfArr != null ? (String[]) rfArr.getArray() : null);
+        e.setRedactedContentHash(rs.getString("redacted_content_hash"));
         return e;
     };
 
@@ -52,14 +54,15 @@ public class AuditEventRepository {
     public AuditEvent save(AuditEvent event) {
         jdbcTemplate.update(
             "INSERT INTO audit_event (id, event_type, actor_id, resource_type, resource_id, " +
-            "payload, timestamp, content_hash, previous_hash) " +
-            "VALUES (?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?)",
+            "payload, original_payload, timestamp, content_hash, previous_hash) " +
+            "VALUES (?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?)",
             event.getId(),
             event.getEventType(),
             event.getActorId(),
             event.getResourceType(),
             event.getResourceId(),
             event.getPayload(),
+            event.getOriginalPayload(),
             Timestamp.from(event.getTimestamp()),
             event.getContentHash(),
             event.getPreviousHash()
@@ -116,20 +119,23 @@ public class AuditEventRepository {
     }
 
     /**
-     * Updates payload with redacted values and sets redaction metadata.
-     * contentHash is intentionally NOT updated — see redaction trade-off documentation.
+    * Updates only the caller-visible payload and redaction metadata. The original
+    * payload and contentHash remain immutable.
      */
     public void redactPayloadFields(UUID id, String redactedPayload,
-                                     String[] redactedFields, Instant now) throws Exception {
+                             String redactedContentHash, String[] redactedFields,
+                             Instant now) throws Exception {
         jdbcTemplate.update(connection -> {
             var ps = connection.prepareStatement(
                 "UPDATE audit_event " +
-                "SET payload = ?::jsonb, is_redacted = TRUE, redacted_at = ?, redacted_fields = ? " +
+                "SET payload = ?::jsonb, redacted_content_hash = ?, is_redacted = TRUE, " +
+                "redacted_at = ?, redacted_fields = ? " +
                 "WHERE id = ?");
             ps.setString(1, redactedPayload);
-            ps.setTimestamp(2, Timestamp.from(now));
-            ps.setArray(3, connection.createArrayOf("TEXT", redactedFields));
-            ps.setObject(4, id);
+            ps.setString(2, redactedContentHash);
+            ps.setTimestamp(3, Timestamp.from(now));
+            ps.setArray(4, connection.createArrayOf("TEXT", redactedFields));
+            ps.setObject(5, id);
             return ps;
         });
     }
@@ -138,8 +144,10 @@ public class AuditEventRepository {
     public List<AuditEvent> findAllForExport(AuditEventFilter filter) {
         WhereClause wc = buildWhere(filter, false); // includes archived
         String sql = "SELECT * FROM audit_event" + wc.sql() +
-                     " ORDER BY sequence_number ASC";
-        return jdbcTemplate.query(sql, ROW_MAPPER, wc.params().toArray());
+                     " ORDER BY sequence_number ASC LIMIT ?";
+        List<Object> params = new ArrayList<>(wc.params());
+        params.add(filter.getSize());
+        return jdbcTemplate.query(sql, ROW_MAPPER, params.toArray());
     }
 
     private WhereClause buildWhere(AuditEventFilter filter, boolean excludeArchived) {

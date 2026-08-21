@@ -11,7 +11,7 @@ This document defines the PostgreSQL database design implemented by the Audit Lo
 
 It serves as the database contract for the Flyway migrations and Spring JDBC repository. Historical alternatives remain labeled as proposal context.
 
-**Design history note:** This document records the original database design decisions and alternatives. The implemented PostgreSQL schema is maintained by the Flyway migrations under `src/main/resources/db/migration`; the current implementation uses UUID IDs, a BIGSERIAL `sequence_number`, JSONB payloads, Scenario B retention/redaction columns, and the indexes verified by the database integration tests when Docker is available.
+**Design history note:** This document records the original database design decisions and alternatives. The implemented PostgreSQL schema is maintained by the Flyway migrations under `src/main/resources/db/migration`; the current implementation uses UUID IDs, a BIGSERIAL `sequence_number`, JSONB payloads, immutable original payload preservation for redaction, Scenario B retention/redaction columns, and the indexes verified by the database integration tests when Docker is available.
 
 ---
 
@@ -340,7 +340,7 @@ Scenario B requires configurable retention of audit records (REQ-B-001–004).
 Scenario B requires structured redaction of sensitive payload fields (REQ-B-005–008).
 
 **The hash integrity problem:**  
-`content_hash` was computed over the original, unredacted content. After redaction, the stored `payload` differs from what was hashed. Recomputing `content_hash` from the redacted row will produce a different value — the verification walk will flag this record as tampered.
+`content_hash` is computed over the original payload and remains immutable. Redaction changes only the caller-visible `payload`; `original_payload` preserves the original canonical input, and `redacted_content_hash` authenticates the redacted representation. Verification checks both hashes, so legitimate redaction remains valid while unauthorized changes to either representation are detected.
 
 **This is an inherent trade-off, not a defect.** The architecture and this design must explicitly handle it (REQ-B-008).
 
@@ -348,20 +348,22 @@ Scenario B requires structured redaction of sensitive payload fields (REQ-B-005�
 
 | Approach | Mechanism | Implication |
 |----------|-----------|-------------|
-| Overwrite payload fields | Update the JSONB payload, replacing sensitive values with a redaction marker (e.g., `"[REDACTED]"`) | Simple; original content is gone; hash mismatch on verify |
+| Overwrite payload fields | Update the JSONB payload, replacing sensitive values with a redaction marker (e.g., `"[REDACTED]"`) | Original content is lost unless separately preserved; not sufficient by itself |
 | Store redaction record | Insert a new audit record of type `REDACTION_EVENT` referencing the original record | Preserves immutable original; redaction is audited |
 | Separate redaction flag | Add `is_redacted BOOLEAN` and `redacted_at TIMESTAMPTZ` columns; verifier skips hash check for redacted records | Allows partial verification; relies on application trust |
-| Store original hash separately | Add `original_content_hash` column before redaction; verifier uses it for redacted records | Preserves original evidence; more complex verify logic |
+| Preserve original payload and hash redacted view | Add `original_payload` and `redacted_content_hash`; verifier checks original content hash and redacted view hash | Preserves original evidence and detects redacted-view tampering; implemented V3 design |
 
-**Proposed columns for tracking redaction (not finalised):**
+**Implemented columns for tracking redaction:**
 
 | Column | Type | Purpose |
 |--------|------|---------|
 | `is_redacted` | `BOOLEAN DEFAULT FALSE` | Flags records that have been redacted |
 | `redacted_at` | `TIMESTAMPTZ` | When redaction occurred |
 | `redacted_fields` | `TEXT[]` | Which payload fields were redacted |
+| `original_payload` | `JSONB` | Immutable payload used to recompute the original `content_hash` |
+| `redacted_content_hash` | `VARCHAR(128)` | Hash of the current redacted payload representation |
 
-**OPEN — final redaction mechanism is PENDING (OD-09).**
+**Implemented redaction mechanism:** V2 stores redaction metadata and V3 preserves the original payload plus the redacted representation hash. The API response and export expose the redacted payload, not the preserved original payload.
 
 ---
 

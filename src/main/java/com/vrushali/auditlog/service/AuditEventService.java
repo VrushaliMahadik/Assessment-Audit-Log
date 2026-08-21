@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vrushali.auditlog.dto.*;
 import com.vrushali.auditlog.exception.AuditEventNotFoundException;
+import com.vrushali.auditlog.exception.ExportLimitExceededException;
 import com.vrushali.auditlog.model.AuditEvent;
 import com.vrushali.auditlog.repository.AuditEventRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,6 +42,9 @@ public class AuditEventService {
     private final ObjectMapper objectMapper;
     private final long retentionDays;
 
+    @Value("${audit.export.max-records:10000}")
+    private int maxExportRecords = 10000;
+
     public AuditEventService(AuditEventRepository repository,
                               HashService hashService,
                               JdbcTemplate jdbcTemplate,
@@ -68,6 +72,7 @@ public class AuditEventService {
         event.setResourceType(request.getResourceType());
         event.setResourceId(request.getResourceId());
         event.setPayload(hashService.serializePayload(request.getPayload()));
+        event.setOriginalPayload(event.getPayload());
         // Truncate to microseconds: matches PostgreSQL TIMESTAMPTZ precision
         event.setTimestamp(Instant.now().truncatedTo(ChronoUnit.MICROS));
         event.setPreviousHash(previousHash);
@@ -144,11 +149,27 @@ public class AuditEventService {
                         event.getId(), event.getSequenceNumber(), "PREVIOUS_HASH_MISMATCH"));
             }
 
-            String recomputed = hashService.computeContentHash(event);
+            String originalPayload = event.isRedacted() && event.getOriginalPayload() != null
+                ? event.getOriginalPayload() : event.getPayload();
+            String recomputed = hashService.computeContentHash(copyWithPayload(event, originalPayload));
             if (!recomputed.equals(event.getContentHash())) {
                 return new VerifyChainResponse(false, i, verifiedAt,
                     new VerifyChainResponse.FirstInconsistentRecord(
                         event.getId(), event.getSequenceNumber(), "CONTENT_HASH_MISMATCH"));
+            }
+
+            if (event.isRedacted()) {
+                if (event.getRedactedContentHash() == null) {
+                    return new VerifyChainResponse(false, i, verifiedAt,
+                        new VerifyChainResponse.FirstInconsistentRecord(
+                            event.getId(), event.getSequenceNumber(), "REDACTED_CONTENT_HASH_MISSING"));
+                }
+                String redactedHash = hashService.computeContentHash(event);
+                if (!redactedHash.equals(event.getRedactedContentHash())) {
+                    return new VerifyChainResponse(false, i, verifiedAt,
+                        new VerifyChainResponse.FirstInconsistentRecord(
+                            event.getId(), event.getSequenceNumber(), "REDACTED_CONTENT_HASH_MISMATCH"));
+                }
             }
 
             expectedPreviousHash = event.getContentHash();
@@ -188,19 +209,39 @@ public class AuditEventService {
 
         String redactedPayload = objectMapper.writeValueAsString(node);
         String[] redactedFields = selected.toArray(String[]::new);
-        repository.redactPayloadFields(id, redactedPayload, redactedFields, Instant.now());
-
+        event.setOriginalPayload(event.getOriginalPayload() != null
+            ? event.getOriginalPayload() : event.getPayload());
         event.setPayload(redactedPayload);
+        String redactedContentHash = hashService.computeContentHash(event);
+        repository.redactPayloadFields(id, redactedPayload, redactedContentHash,
+            redactedFields, Instant.now());
+
         event.setRedacted(true);
+        event.setRedactedContentHash(redactedContentHash);
         event.setRedactedAt(Instant.now());
         event.setRedactedFields(redactedFields);
         return AuditEventResponse.from(event);
     }
 
+    private AuditEvent copyWithPayload(AuditEvent event, String payload) {
+        AuditEvent copy = new AuditEvent();
+        copy.setEventType(event.getEventType());
+        copy.setActorId(event.getActorId());
+        copy.setResourceType(event.getResourceType());
+        copy.setResourceId(event.getResourceId());
+        copy.setPayload(payload);
+        copy.setTimestamp(event.getTimestamp());
+        return copy;
+    }
+
     @Transactional(readOnly = true)
     public Map<String, Object> exportEvents(String actorId, String resourceId) {
-        AuditEventFilter filter = new AuditEventFilter(actorId, null, resourceId, null, null, null, 0, Integer.MAX_VALUE);
+        AuditEventFilter filter = new AuditEventFilter(actorId, null, resourceId, null, null, null, 0,
+            maxExportRecords + 1);
         List<AuditEvent> records = repository.findAllForExport(filter);
+        if (records.size() > maxExportRecords) {
+            throw new ExportLimitExceededException(maxExportRecords);
+        }
         List<Map<String, Object>> exportRecords = new ArrayList<>();
         for (AuditEvent event : records) {
             Map<String, Object> record = new HashMap<>();

@@ -61,6 +61,19 @@ public class GlobalExceptionHandler {
         ));
     }
 
+    @ExceptionHandler(ExportLimitExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleExportLimit(
+        ExportLimitExceededException ex, HttpServletRequest req) {
+
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(Map.of(
+            "timestamp", Instant.now().toString(),
+            "status", 413,
+            "error", "Payload Too Large",
+            "message", ex.getMessage(),
+            "path", req.getRequestURI()
+        ));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneral(
         Exception ex, HttpServletRequest req) {

@@ -10,6 +10,7 @@ public class AuditEvent {
     private String resourceType;
     private String resourceId;
     private String payload; // compact JSON string, or null
+    private String originalPayload;
     private Instant timestamp;
     private String contentHash;
     private String previousHash;
@@ -19,6 +20,7 @@ public class AuditEvent {
     private boolean isRedacted;
     private Instant redactedAt;
     private String[] redactedFields;
+    private String redactedContentHash;
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -32,6 +34,8 @@ public class AuditEvent {
     public void setResourceId(String resourceId) { this.resourceId = resourceId; }
     public String getPayload() { return payload; }
     public void setPayload(String payload) { this.payload = payload; }
+    public String getOriginalPayload() { return originalPayload; }
+    public void setOriginalPayload(String originalPayload) { this.originalPayload = originalPayload; }
     public Instant getTimestamp() { return timestamp; }
     public void setTimestamp(Instant timestamp) { this.timestamp = timestamp; }
     public String getContentHash() { return contentHash; }
@@ -50,4 +54,6 @@ public class AuditEvent {
     public void setRedactedAt(Instant redactedAt) { this.redactedAt = redactedAt; }
     public String[] getRedactedFields() { return redactedFields; }
     public void setRedactedFields(String[] redactedFields) { this.redactedFields = redactedFields; }
+    public String getRedactedContentHash() { return redactedContentHash; }
+    public void setRedactedContentHash(String redactedContentHash) { this.redactedContentHash = redactedContentHash; }
 }

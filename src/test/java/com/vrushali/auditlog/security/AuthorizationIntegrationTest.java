@@ -124,6 +124,15 @@ class AuthorizationIntegrationTest {
     }
 
     @Test
+    void adminJwt_emptyRedactionFields_returns400() throws Exception {
+        mockMvc.perform(patch("/api/v1/audit/events/{id}/redact", UUID.randomUUID())
+               .with(jwt().authorities(new SimpleGrantedAuthority("ADMIN")))
+               .contentType(MediaType.APPLICATION_JSON)
+               .content("{\"fields\":[]}"))
+               .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void serviceJwt_allowedToRecordClientAccountAccess() throws Exception {
         given(auditEventService.recordClientAccountAccess(any())).willReturn(new AuditEventResponse());
 

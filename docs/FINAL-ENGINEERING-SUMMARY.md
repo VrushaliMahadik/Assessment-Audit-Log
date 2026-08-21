@@ -86,16 +86,22 @@ The application uses Spring JDBC, not Spring Data JPA/Hibernate. No Scenario C m
 - PostgreSQL advisory-lock serialization prevents concurrent chain forks.
 - Verification recomputes hashes and checks previous-hash links.
 - Direct database tampering is detected by the verification endpoint.
-- Redaction intentionally preserves the original content hash and documents the resulting verification trade-off.
+- Redaction preserves the original payload and content hash internally, while a separate redacted-content hash authenticates the caller-visible redacted representation.
 
 ## 7. Testing
 
 Actual local results:
 
-- **35 executable tests passed**
+- **41 executable tests passed**
 - **0 failures**
 - **0 errors**
 - **38 PostgreSQL/Testcontainers tests were not executed because Docker was unavailable**
+
+JaCoCo coverage is generated during `./mvnw clean verify -q` for `src/main/java`:
+
+- Line coverage: **64.71%** (1,599 / 2,471)
+- Branch coverage: **40.91%** (180 / 440)
+- HTML report: `target/site/jacoco/index.html`
 
 The 38 unexecuted tests are 23 Scenario A tests, 9 database migration tests, and 6 Scenario C tests. The complete evidence is recorded in `docs/TESTING-EVIDENCE.md`.
 

@@ -33,11 +33,11 @@ This document records actual validation evidence against the requirements define
 
 | Result | Count |
 |--------|-------|
-| Tests executed and passed | 35 |
+| Tests executed and passed | 41 |
 | Failures | 0 |
 | Errors | 0 |
 | Tests skipped | 38 |
-| Total discovered | 73 |
+| Total discovered | 79 |
 
 Evidence source: Maven Surefire XML reports under `target/surefire-reports/`.
 
@@ -46,7 +46,7 @@ Evidence source: Maven Surefire XML reports under `target/surefire-reports/`.
 | Test class | Result |
 |------------|--------|
 | `HashServiceTest` | PASS: 9/9 |
-| `ScenarioBServiceTest` | PASS: 3/3 |
+| `ScenarioBServiceTest` | PASS: 4/4 |
 | `ScenarioCServiceTest` | PASS: 1/1 |
 
 ### Integration Tests
@@ -67,7 +67,7 @@ Evidence source: Maven Surefire XML reports under `target/surefire-reports/`.
 
 ### Authorization
 
-`AuthorizationIntegrationTest`: PASS, 16/16. Coverage includes allowed and denied Scenario A writes/reads, admin verification, Scenario B export/redaction/retention permissions, Scenario C write permission, and 401/403 boundaries.
+`AuthorizationIntegrationTest`: PASS, 17/17. Coverage includes allowed and denied Scenario A writes/reads, admin verification, Scenario B export/redaction/retention permissions, Scenario C write permission, redaction validation, and 401/403 boundaries.
 
 ### Scenario A
 
@@ -75,7 +75,7 @@ Evidence source: Maven Surefire XML reports under `target/surefire-reports/`.
 
 ### Scenario B
 
-`ScenarioBServiceTest`: PASS, 3/3 for redaction mapping, retention archival result, and self-contained export assembly. Authorization coverage for ADMIN access and AUDITOR denial of export, redaction, and retention also passed within `AuthorizationIntegrationTest`.
+`ScenarioBServiceTest`: PASS, 4/4 for redaction mapping, retention archival result, self-contained export assembly, and configured export-limit rejection. Authorization coverage for ADMIN access and AUDITOR denial of export, redaction, and retention also passed within `AuthorizationIntegrationTest`.
 
 ### Scenario C
 
@@ -91,11 +91,30 @@ The existing `verifyChain_afterDirectDatabaseTamper_detectsTampering` test creat
 
 ### Regression
 
-The complete clean Maven verification passed with 35 executed tests and zero failures or errors. Scenario A, Scenario B, Scenario C, authentication, authorization, and hash-service suites all compiled successfully. PostgreSQL-dependent regression remains pending Docker availability.
+The complete clean Maven verification passed with 41 executed tests and zero failures or errors. Scenario A, Scenario B, Scenario C, authentication, authorization, hash-service, redaction-integrity, and abuse-control suites all compiled successfully. PostgreSQL-dependent regression remains pending Docker availability.
 
 ### Coverage
 
-No JaCoCo or other coverage plugin is configured in `pom.xml`. No coverage percentage was generated or claimed.
+JaCoCo is configured in `pom.xml` with `prepare-agent` during tests and `report` during the Maven `verify` phase. Coverage is measured for production classes under `src/main/java`; no coverage threshold is configured.
+
+Generate the report with:
+
+```text
+./mvnw clean verify -q
+```
+
+Actual measured coverage from `target/site/jacoco/jacoco.xml`:
+
+| Metric | Covered | Total | Coverage |
+|--------|---------|-------|----------|
+| Lines | 1,599 | 2,471 | 64.71% |
+| Branches | 180 | 440 | 40.91% |
+
+HTML report: `target/site/jacoco/index.html`  
+XML report: `target/site/jacoco/jacoco.xml`  
+CSV report: `target/site/jacoco/jacoco.csv`
+
+The report includes the available unit, service, security, context, and integrity tests. PostgreSQL/Testcontainers tests remain unexecuted because Docker is unavailable and are not represented as passed coverage.
 
 ### Repository Hygiene
 
@@ -130,9 +149,9 @@ Command:
 ./mvnw -Dtest=AuditLogApplicationTests,AuthenticationIntegrationTest,AuthorizationIntegrationTest,HashServiceTest,ScenarioBServiceTest,ScenarioCServiceTest test -q
 ```
 
-Actual result: **35 tests passed, 0 failures, 0 errors**.
+Actual result: **39 tests passed, 0 failures, 0 errors**.
 
-The same Docker-independent test set was rerun for Step 14 finalization on 2026-08-21 with the same result: **35 passed, 0 failures, 0 errors**.
+The Docker-independent test set was rerun after the redaction integrity fix: **39 passed, 0 failures, 0 errors**.
 
 ### Blocked Tests
 
@@ -173,7 +192,7 @@ Actual result: **38 tests remained skipped** — Scenario A 23, database migrati
 ./mvnw clean test -q
 ```
 
-Actual result: **35 executable tests passed, 0 failures, 0 errors, and 38 PostgreSQL/Testcontainers tests skipped**.
+Actual result: **39 executable tests passed, 0 failures, 0 errors, and 38 PostgreSQL/Testcontainers tests skipped**.
 
 ---
 
@@ -200,7 +219,11 @@ For every completed test execution, record:
 
 ## Test Case Inventory
 
-> **Inventory status note:** The following inventory preserves the original planned test matrix. Its historical `NOT RUN` values are not final execution results. For the current submission, use the Final Step 14, Step 14A, and Step 14C execution sections above: 35 executable tests passed, and 38 PostgreSQL/Testcontainers tests were not executed because Docker was unavailable.
+> **Inventory status note:** The following inventory preserves the original planned test matrix. Its historical `NOT RUN` values are not final execution results. For the current submission, use the final execution sections above: 39 executable tests passed, and 38 PostgreSQL/Testcontainers tests were not executed because Docker was unavailable.
+
+### Redaction Integrity Evidence — 2026-08-21
+
+`RedactionIntegrityTest`: **4/4 passed**. Coverage includes legitimate redaction verification, non-redacted payload tampering, redacted payload tampering, and middle-event redaction with the full chain remaining valid.
 
 | Test ID | Requirement ID | Scenario | Test Type | Description | Status |
 |---------|----------------|----------|-----------|-------------|--------|
@@ -407,15 +430,15 @@ This is a dedicated evidence section for the most critical test in the assessmen
 | Evidence | — |
 | Related commit | — |
 
-### T-B-003 / T-B-004 — Structured Redaction
+### T-B-003 / T-B-004 — Structured Redaction and Integrity
 
 | Field | Value |
 |-------|-------|
 | Requirement ID | REQ-B-005, REQ-B-006, REQ-B-007 |
 | Test type | Integration |
 | Preconditions | Application running; a record with a payload containing sensitive fields |
-| Test steps | (1) Create record with sensitive payload; (2) call redaction endpoint; (3) assert sensitive fields are redacted in stored record; (4) call verify and compare result against documented specification |
-| Expected result | Fields redacted; verify behaviour matches documented specification (PENDING) |
+| Test steps | (1) Create record with sensitive payload; (2) redact a field; (3) verify the chain; (4) tamper with a non-redacted payload; (5) tamper with a redacted payload; (6) redact a middle event and verify the chain |
+| Expected result | Legitimate redaction verifies successfully; tampering with either an unredacted or redacted representation is detected with a specific mismatch |
 | Actual result | _[To be completed after execution]_ |
 | Status | NOT RUN |
 | Date | — |
