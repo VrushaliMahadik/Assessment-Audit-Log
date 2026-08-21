@@ -1,7 +1,7 @@
 # Architecture — Audit Log Service
 
 **Engineer:** Vrushali Mahadik  
-**Status:** Proposed — subject to engineering review. Unresolved decisions remain open until approved.
+**Status:** Proposed architecture with implementation decisions reconciled in the current codebase.
 
 ---
 
@@ -11,7 +11,15 @@ This document translates the approved requirements from `docs/REQUIREMENT-ANALYS
 
 It serves as the design contract between the requirements phase and the implementation phase. All major components, flows, and boundaries are defined here so that implementation can proceed with a clear, reviewable plan.
 
-**Important:** Several engineering decisions documented in `docs/REQUIREMENT-ANALYSIS.md` remain unresolved. Those decisions are preserved as open in this document. No open decision has been silently resolved. Final architecture is subject to engineering review and approval.
+**Important:** Historical proposal sections preserve the original decision trail. The implemented decisions are recorded in the current service code and summarized in the reconciliation notes below; no requirement has been silently changed.
+
+### Current Implementation Reconciliation
+
+- Java 21, Spring Boot 3.3.4, PostgreSQL, Flyway, Spring JDBC, and OAuth2/JWT resource-server authentication are implemented.
+- SHA-256, sorted-key canonical JSON, a 64-zero genesis value, sequence-number ordering, and PostgreSQL advisory-lock serialization are implemented for the audit chain.
+- Scenario B uses soft archival, structured redaction with its documented hash trade-off, and admin-only export.
+- Scenario C records successful READ/WRITE client-account access through `POST /api/v1/audit/client-account-access`; its final decisions are recorded in `docs/SCENARIO-C-DESIGN.md`.
+- Docker/Testcontainers remains the required path for PostgreSQL integration tests; the current local limitation is recorded in `docs/TESTING-EVIDENCE.md`.
 
 ---
 

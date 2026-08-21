@@ -17,6 +17,10 @@ Unresolved design decisions are preserved as open. Nothing has been silently fin
 
 ## 2. API Design Principles
 
+### Current Implementation Note
+
+This document retains early proposal notes for traceability. The implemented base path is `/api/v1`, the authorization matrix is enforced by `SecurityConfig`, pagination uses `page`/`size`, and query results are ordered by `sequence_number ASC`. Scenario C's finalized endpoint is documented in Section 11.
+
 | Principle | Description |
 |-----------|-------------|
 | RESTful, resource-oriented | URLs identify resources; HTTP verbs express operations |

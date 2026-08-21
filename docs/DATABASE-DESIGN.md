@@ -11,7 +11,7 @@ This document defines the proposed PostgreSQL database design for the Audit Log 
 
 It serves as the design contract between the architecture phase and the implementation phase. All table structures, field definitions, indexes, constraints, and design decisions are documented here so that Flyway migrations and JPA entities can be written with a clear, reviewed foundation.
 
-**This is a design document only.** No SQL, no migration files, and no JPA entities are created here. Unresolved decisions remain open and are not silently resolved.
+**Design history note:** This document records the original database design decisions and alternatives. The implemented PostgreSQL schema is maintained by the Flyway migrations under `src/main/resources/db/migration`; the current implementation uses UUID IDs, a BIGSERIAL `sequence_number`, JSONB payloads, Scenario B retention/redaction columns, and the indexes verified by the database integration tests when Docker is available.
 
 ---
 
