@@ -6,7 +6,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Array;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +34,14 @@ public class AuditEventRepository {
         e.setSequenceNumber(rs.getLong("sequence_number"));
         Timestamp cat = rs.getTimestamp("created_at");
         e.setCreatedAt(cat != null ? cat.toInstant() : null);
+        // Scenario B fields
+        Timestamp aat = rs.getTimestamp("archived_at");
+        e.setArchivedAt(aat != null ? aat.toInstant() : null);
+        e.setRedacted(rs.getBoolean("is_redacted"));
+        Timestamp rat = rs.getTimestamp("redacted_at");
+        e.setRedactedAt(rat != null ? rat.toInstant() : null);
+        Array rfArr = rs.getArray("redacted_fields");
+        e.setRedactedFields(rfArr != null ? (String[]) rfArr.getArray() : null);
         return e;
     };
 
@@ -80,7 +90,7 @@ public class AuditEventRepository {
     }
 
     public List<AuditEvent> findFiltered(AuditEventFilter filter) {
-        WhereClause wc = buildWhere(filter);
+        WhereClause wc = buildWhere(filter, true); // excludes archived
         String sql = "SELECT * FROM audit_event" + wc.sql() +
                      " ORDER BY sequence_number ASC" +
                      " LIMIT ? OFFSET ?";
@@ -91,16 +101,54 @@ public class AuditEventRepository {
     }
 
     public long countFiltered(AuditEventFilter filter) {
-        WhereClause wc = buildWhere(filter);
+        WhereClause wc = buildWhere(filter, true); // excludes archived
         String sql = "SELECT COUNT(*) FROM audit_event" + wc.sql();
         Long count = jdbcTemplate.queryForObject(sql, Long.class, wc.params().toArray());
         return count != null ? count : 0L;
     }
 
-    private WhereClause buildWhere(AuditEventFilter filter) {
+    /** Soft-deletes records older than the cutoff by setting archived_at = NOW(). */
+    public int archiveOlderThan(Instant cutoff) {
+        return jdbcTemplate.update(
+            "UPDATE audit_event SET archived_at = NOW() " +
+            "WHERE timestamp < ? AND archived_at IS NULL",
+            Timestamp.from(cutoff));
+    }
+
+    /**
+     * Updates payload with redacted values and sets redaction metadata.
+     * contentHash is intentionally NOT updated — see redaction trade-off documentation.
+     */
+    public void redactPayloadFields(UUID id, String redactedPayload,
+                                     String[] redactedFields, Instant now) throws Exception {
+        jdbcTemplate.update(connection -> {
+            var ps = connection.prepareStatement(
+                "UPDATE audit_event " +
+                "SET payload = ?::jsonb, is_redacted = TRUE, redacted_at = ?, redacted_fields = ? " +
+                "WHERE id = ?");
+            ps.setString(1, redactedPayload);
+            ps.setTimestamp(2, Timestamp.from(now));
+            ps.setArray(3, connection.createArrayOf("TEXT", redactedFields));
+            ps.setObject(4, id);
+            return ps;
+        });
+    }
+
+    /** Returns all records for export, including archived, matching the given filter (no pagination). */
+    public List<AuditEvent> findAllForExport(AuditEventFilter filter) {
+        WhereClause wc = buildWhere(filter, false); // includes archived
+        String sql = "SELECT * FROM audit_event" + wc.sql() +
+                     " ORDER BY sequence_number ASC";
+        return jdbcTemplate.query(sql, ROW_MAPPER, wc.params().toArray());
+    }
+
+    private WhereClause buildWhere(AuditEventFilter filter, boolean excludeArchived) {
         StringBuilder sb = new StringBuilder();
         List<Object> params = new ArrayList<>();
 
+        if (excludeArchived) {
+            sb.append(" AND archived_at IS NULL");
+        }
         if (filter.getActorId() != null) {
             sb.append(" AND actor_id = ?");
             params.add(filter.getActorId());
@@ -126,7 +174,6 @@ public class AuditEventRepository {
             params.add(Timestamp.from(filter.getTo()));
         }
 
-        // prefix WHERE only when there are actual conditions
         String where = sb.isEmpty() ? "" : " WHERE 1=1" + sb;
         return new WhereClause(where, params);
     }

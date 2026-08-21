@@ -12,6 +12,8 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 
 @Validated
@@ -29,6 +31,13 @@ public class AuditEventController {
     public ResponseEntity<AuditEventResponse> createEvent(
         @Valid @RequestBody CreateAuditEventRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.createAuditEvent(request));
+    }
+
+    @PostMapping("/client-account-access")
+    public ResponseEntity<AuditEventResponse> recordClientAccountAccess(
+        @Valid @RequestBody ClientAccountAccessRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(service.recordClientAccountAccess(request));
     }
 
     @GetMapping("/events")
@@ -55,5 +64,31 @@ public class AuditEventController {
     @GetMapping("/verify")
     public ResponseEntity<VerifyChainResponse> verifyChain() {
         return ResponseEntity.ok(service.verifyChain());
+    }
+
+    @PatchMapping("/events/{id}/redact")
+    public ResponseEntity<AuditEventResponse> redactEvent(
+        @PathVariable UUID id,
+        @RequestBody RedactAuditEventRequest request) throws Exception {
+        return ResponseEntity.ok(service.redactEvent(id, request.getFields()));
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<Map<String, Object>> exportEvents(
+        @RequestParam(required = false) String actorId,
+        @RequestParam(required = false) String resourceId) {
+        if (actorId == null && resourceId == null) {
+            throw new IllegalArgumentException("Either actorId or resourceId is required");
+        }
+        return ResponseEntity.ok(service.exportEvents(actorId, resourceId));
+    }
+
+    @PostMapping("/admin/retention/run")
+    public ResponseEntity<Map<String, Object>> runRetention() {
+        int archived = service.runRetention();
+        Map<String, Object> response = new HashMap<>();
+        response.put("archivedRecords", archived);
+        response.put("runAt", Instant.now());
+        return ResponseEntity.ok(response);
     }
 }

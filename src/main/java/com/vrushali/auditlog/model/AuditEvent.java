@@ -15,6 +15,10 @@ public class AuditEvent {
     private String previousHash;
     private Long sequenceNumber;
     private Instant createdAt;
+    private Instant archivedAt;
+    private boolean isRedacted;
+    private Instant redactedAt;
+    private String[] redactedFields;
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
@@ -38,4 +42,12 @@ public class AuditEvent {
     public void setSequenceNumber(Long sequenceNumber) { this.sequenceNumber = sequenceNumber; }
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public Instant getArchivedAt() { return archivedAt; }
+    public void setArchivedAt(Instant archivedAt) { this.archivedAt = archivedAt; }
+    public boolean isRedacted() { return isRedacted; }
+    public void setRedacted(boolean isRedacted) { this.isRedacted = isRedacted; }
+    public Instant getRedactedAt() { return redactedAt; }
+    public void setRedactedAt(Instant redactedAt) { this.redactedAt = redactedAt; }
+    public String[] getRedactedFields() { return redactedFields; }
+    public void setRedactedFields(String[] redactedFields) { this.redactedFields = redactedFields; }
 }

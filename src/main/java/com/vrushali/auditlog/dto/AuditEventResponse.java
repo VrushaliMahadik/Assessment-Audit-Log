@@ -19,6 +19,7 @@ public class AuditEventResponse {
     private String contentHash;
     private String previousHash;
     private Long sequenceNumber;
+    private boolean isRedacted;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -33,6 +34,7 @@ public class AuditEventResponse {
         r.contentHash = event.getContentHash();
         r.previousHash = event.getPreviousHash();
         r.sequenceNumber = event.getSequenceNumber();
+        r.isRedacted = event.isRedacted();
         if (event.getPayload() != null) {
             try {
                 r.payload = MAPPER.readValue(event.getPayload(), JsonNode.class);
@@ -53,4 +55,5 @@ public class AuditEventResponse {
     public String getContentHash() { return contentHash; }
     public String getPreviousHash() { return previousHash; }
     public Long getSequenceNumber() { return sequenceNumber; }
+    public boolean isRedacted() { return isRedacted; }
 }

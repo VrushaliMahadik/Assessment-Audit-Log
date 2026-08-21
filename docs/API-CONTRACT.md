@@ -432,7 +432,7 @@ At least one of `resourceId` or `actorId` must be provided. The exact enforcemen
 
 ## 11. Scenario C
 
-Scenario C requirements are **PENDING CLARIFICATION**. No API contract can be defined until the clarification questions in `docs/REQUIREMENT-ANALYSIS.md` Section 6 are answered and requirements are normalised.
+Scenario C is implemented as successful client-account access recording using the existing audit-event chain.
 
 The expected process before any Scenario C endpoint is added to this contract:
 
@@ -452,7 +452,53 @@ Implementation
 Test evidence recorded
 ```
 
-**No Scenario C endpoints are defined here.**
+### `POST /api/v1/audit/client-account-access`
+
+#### Purpose
+
+Record a successful READ or WRITE access to a client-account resource.
+
+#### Authentication and Authorization
+
+Authentication is required. SERVICE and ADMIN authorities may record access events. Other authenticated roles receive `403 Forbidden`.
+
+#### Request Body
+
+```json
+{
+  "actorId": "service-123",
+  "resourceId": "client-account-456",
+  "accessType": "READ",
+  "payload": {
+    "source": "account-service"
+  }
+}
+```
+
+| Field | Type | Required | Rules |
+|-------|------|----------|-------|
+| `actorId` | `string` | Yes | Non-blank, maximum 255 characters |
+| `resourceId` | `string` | Yes | Non-blank, maximum 255 characters |
+| `accessType` | `string` | Yes | Must be `READ` or `WRITE` |
+| `payload` | `object` | No | Optional structured details |
+
+The service-generated event fields are `eventType=CLIENT_ACCOUNT_ACCESS`, `resourceType=CLIENT_ACCOUNT`, and payload fields `accessType` plus `outcome=SUCCESS`.
+
+#### Response
+
+Returns the existing `AuditEventResponse` with HTTP `201 Created`, including the generated ID, timestamp, content hash, previous hash, sequence number, and normalized payload.
+
+#### Status Codes
+
+| Code | Condition |
+|------|-----------|
+| `201 Created` | Successful access event accepted and appended to the chain |
+| `400 Bad Request` | Missing fields or access type other than `READ`/`WRITE` |
+| `401 Unauthorized` | No authentication credentials provided |
+| `403 Forbidden` | Authenticated caller lacks SERVICE or ADMIN authority |
+| `500 Internal Server Error` | Unexpected server error with safe response |
+
+Failed access attempts are not recorded by this endpoint. Export remains read-only and does not create access events.
 
 ---
 

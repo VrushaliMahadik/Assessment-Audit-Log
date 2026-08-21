@@ -418,9 +418,9 @@ The verification logic used for online `GET /audit/verify` must have an offline 
 
 ## 14. Scenario C Architecture
 
-Scenario C is intentionally ambiguous. The assessment requires that ambiguous requirements be clarified before design and implementation.
+Scenario C is resolved using the conservative decisions recorded in `docs/SCENARIO-C-DESIGN.md`.
 
-**No Scenario C architecture is defined at this stage.**
+Scenario C reuses the existing Controller -> Service -> Repository -> PostgreSQL path. It adds a dedicated controller operation for successful client-account access recording and delegates to the existing hash-chain append logic.
 
 The expected process:
 
@@ -431,10 +431,7 @@ Ambiguous requirement
 Clarification questions answered (see REQUIREMENT-ANALYSIS.md §6)
   │
   ▼
-Normalised requirement statement
-  │
-  ▼
-Architecture update to this document
+Normalised requirement statement and conservative assumptions
   │
   ▼
 Implementation
@@ -443,7 +440,7 @@ Implementation
 Test evidence
 ```
 
-Scenario C components, endpoints, and data model extensions will be added to this document after clarification is complete.
+The Scenario C endpoint is `POST /api/v1/audit/client-account-access`. It accepts an actor ID, client-account resource ID, access type (`READ` or `WRITE`), and optional structured details. The service fixes the event type to `CLIENT_ACCOUNT_ACCESS`, the resource type to `CLIENT_ACCOUNT`, and the outcome to `SUCCESS`. No new database table or migration is required.
 
 ---
 

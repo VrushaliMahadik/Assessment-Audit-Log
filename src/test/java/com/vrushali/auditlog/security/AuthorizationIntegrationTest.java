@@ -1,6 +1,7 @@
 package com.vrushali.auditlog.security;
 
 import com.vrushali.auditlog.dto.AuditEventPageResponse;
+import com.vrushali.auditlog.dto.AuditEventResponse;
 import com.vrushali.auditlog.service.AuditEventService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,11 +17,15 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Collections;
 
+import java.util.Map;
+import java.util.UUID;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -98,6 +103,46 @@ class AuthorizationIntegrationTest {
     }
 
     // Test 6 — authenticated but insufficient authority → 403
+    @Test
+    void adminJwt_allowedToExportEvents() throws Exception {
+        given(auditEventService.exportEvents(any(), any())).willReturn(Map.of("recordCount", 0, "records", java.util.Collections.emptyList()));
+
+        mockMvc.perform(get("/api/v1/audit/export?resourceId=resource-1")
+               .with(jwt().authorities(new SimpleGrantedAuthority("ADMIN"))))
+               .andExpect(status().isOk());
+    }
+
+    @Test
+    void adminJwt_allowedToRedactEvent() throws Exception {
+        given(auditEventService.redactEvent(any(), any())).willReturn(new AuditEventResponse());
+
+        mockMvc.perform(patch("/api/v1/audit/events/{id}/redact", UUID.randomUUID())
+               .with(jwt().authorities(new SimpleGrantedAuthority("ADMIN")))
+               .contentType(MediaType.APPLICATION_JSON)
+               .content("{\"fields\":[\"email\"]}"))
+               .andExpect(status().isOk());
+    }
+
+    @Test
+    void serviceJwt_allowedToRecordClientAccountAccess() throws Exception {
+        given(auditEventService.recordClientAccountAccess(any())).willReturn(new AuditEventResponse());
+
+        mockMvc.perform(post("/api/v1/audit/client-account-access")
+               .with(jwt().authorities(new SimpleGrantedAuthority("SERVICE")))
+               .contentType(MediaType.APPLICATION_JSON)
+               .content("{\"actorId\":\"service-1\",\"resourceId\":\"account-1\",\"accessType\":\"READ\"}"))
+               .andExpect(status().isCreated());
+    }
+
+    @Test
+    void auditorJwt_deniedClientAccountAccessWrite() throws Exception {
+        mockMvc.perform(post("/api/v1/audit/client-account-access")
+               .with(jwt().authorities(new SimpleGrantedAuthority("AUDITOR")))
+               .contentType(MediaType.APPLICATION_JSON)
+               .content("{\"actorId\":\"auditor-1\",\"resourceId\":\"account-1\",\"accessType\":\"READ\"}"))
+               .andExpect(status().isForbidden());
+    }
+
     @Test
     void auditorJwt_forbiddenOnAdminVerifyEndpoint() throws Exception {
         mockMvc.perform(get("/api/v1/audit/verify")

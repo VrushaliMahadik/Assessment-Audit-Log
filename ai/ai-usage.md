@@ -76,6 +76,38 @@
 
 ---
 
+**ID:** AI-011
+**Date:** 2026-08-21
+**Prompt:** Implement Scenario B retention, structured redaction, and bulk export for the Audit Log Service.
+**Summary:** Added retention-window support to AuditEventService with configurable retention days, repository archival logic, and admin retention trigger endpoints. Implemented structured redaction flow with request DTO and controller endpoint, preserving the audit record while marking redacted fields and exporting the redacted payload. Added bulk export APIs for filtering by actorId/resourceId and returned self-contained export payloads with chain metadata and record details. Updated SecurityConfig to gate redaction, export, and retention operations to ADMIN-only access. Added ScenarioBServiceTest covering retention execution, redaction, and export behavior. Verification: ./mvnw test -q completed successfully in the working environment, with Docker-based Testcontainers tests skipped gracefully when Docker is unavailable.
+**Decision:** ACCEPT
+
+---
+
+**ID:** AI-012
+**Date:** 2026-08-21
+**Prompt:** Implement Scenario C by clarifying and normalizing the ambiguous requirement, documenting assumptions and technical design, implementing the agreed scope, and adding tests.
+**Summary:** Reviewed the approved assessment documents and confirmed that Scenario C remains PENDING CLARIFICATION with no normalized requirement, API contract, schema, security scope, or approved runtime behavior. Added `docs/SCENARIO-C-DESIGN.md` to preserve the ambiguity, assumptions, scope boundary, and implementation gate; no Scenario C code or tests were invented.
+**Decision:** MODIFY
+
+---
+
+**ID:** AI-013
+**Date:** 2026-08-21
+**Prompt:** Analyze Scenario C clarification questions C-Q-01 through C-Q-12 and prepare the decision analysis required before implementation.
+**Summary:** Prepared a decision table and consolidated implementation-impact analysis for C-Q-01 through C-Q-12 in `docs/SCENARIO-C-DESIGN.md`. No Scenario C questions were answered, and no Scenario C runtime code, APIs, database changes, security changes, or tests were added.
+**Decision:** MODIFY
+
+---
+
+**ID:** AI-014
+**Date:** 2026-08-21
+**Prompt:** Resolve Scenario C clarification questions using the assessment requirements and existing design, then implement and test the resulting Scenario C scope.
+**Summary:** Resolved C-Q-01 through C-Q-12 using conservative repository-supported assumptions, implemented successful READ/WRITE client-account access recording through a dedicated endpoint, reused the existing audit chain and security model, added unit/integration/security tests, and ran the complete Maven suite.
+**Decision:** MODIFY
+
+---
+
 ## Template for New Entries
 
 **ID:** AI-XXX

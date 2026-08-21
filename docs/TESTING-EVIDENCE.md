@@ -2,7 +2,7 @@
 
 **Project:** Audit Log Service  
 **Engineer:** Vrushali Mahadik  
-**Status:** Structure created. No tests have been executed yet. All entries are NOT RUN.
+**Status:** Scenario C remains blocked by unresolved requirements. The Maven suite has been executed for regression evidence; Docker-backed integration tests remain environment-dependent.
 
 ---
 
@@ -17,6 +17,18 @@ This document records actual validation evidence against the requirements define
 - `PASS` may only be recorded when the test was executed and the actual result matched the expected result.
 - `FAIL` must be recorded honestly when the test was executed and the actual result did not match.
 - Results must not be invented, assumed, or copied from similar tests.
+
+## Executed Regression Evidence — 2026-08-21
+
+| Command | Actual result | Evidence |
+|---------|---------------|----------|
+| `./mvnw clean test -q` | PASS: 29 tests executed, 0 failures, 0 errors; 32 Docker-dependent integration tests skipped because Docker is unavailable | Maven Surefire XML reports under `target/surefire-reports/` |
+| Scenario A regression | PASS for the 0 non-container tests in the class; 23 PostgreSQL-backed tests skipped because Docker is unavailable | `ScenarioAIntegrationTest` Surefire report |
+| Scenario B regression | PASS: 3 tests, 0 failures, 0 errors | `ScenarioBServiceTest` Surefire report |
+| Authentication and authorization regression | PASS: 16 tests, 0 failures, 0 errors | `AuthenticationIntegrationTest` and `AuthorizationIntegrationTest` Surefire reports |
+| Database migration integration | 9 tests skipped because Docker is unavailable; no failures or errors | `DatabaseMigrationIntegrationTest` Surefire report |
+
+Scenario C functional tests were not executed because the approved requirement remains PENDING CLARIFICATION. Adding executable tests would require inventing the behavior they are intended to verify. The clarification gate and normalized boundary are documented in `docs/SCENARIO-C-DESIGN.md`.
 
 ---
 
@@ -282,11 +294,21 @@ This is a dedicated evidence section for the most critical test in the assessmen
 
 ## Scenario C Testing
 
-Scenario C tests are PENDING CLARIFICATION. No test cases can be defined until the clarification questions in `docs/REQUIREMENT-ANALYSIS.md` Section 6 are answered and requirements are normalised.
+Scenario C is finalized as successful READ/WRITE client-account access recording through `POST /api/v1/audit/client-account-access`. The endpoint fixes `eventType=CLIENT_ACCOUNT_ACCESS`, `resourceType=CLIENT_ACCOUNT`, and `outcome=SUCCESS`, while reusing existing authentication, authorization, query, retention, redaction, export, and hash-chain behavior.
 
 | Test ID | Requirement ID | Description | Status |
 |---------|----------------|-------------|--------|
-| T-C-001 | REQ-C-* | Scenario C functional tests — PENDING CLARIFICATION | NOT RUN |
+| T-C-001 | REQ-C-* | Service mapping fixes event/resource/access semantics and appends to the existing chain | PASS |
+| T-C-002 | REQ-C-* | SERVICE can record access and AUDITOR is denied write access | PASS |
+| T-C-003 | REQ-C-* | PostgreSQL API tests cover READ/WRITE recording, validation, authentication, query, and verification | NOT RUN — Docker unavailable |
+
+### Scenario C Actual Evidence — 2026-08-21
+
+| Test | Expected result | Actual result | Status | Evidence |
+|------|-----------------|---------------|--------|----------|
+| `ScenarioCServiceTest` | Scenario C request maps to fixed event/resource values and existing chain fields | 1 test passed; 0 failures/errors | PASS | `target/surefire-reports/TEST-com.vrushali.auditlog.service.ScenarioCServiceTest.xml` |
+| `AuthorizationIntegrationTest` Scenario C cases | SERVICE is allowed and AUDITOR is denied | 13 authorization tests passed; 0 failures/errors | PASS | `target/surefire-reports/TEST-com.vrushali.auditlog.security.AuthorizationIntegrationTest.xml` |
+| `ScenarioCIntegrationTest` | PostgreSQL-backed happy path, validation, authentication, query, and verification tests pass | 6 tests skipped because Docker is unavailable; 0 failures/errors | NOT RUN | `target/surefire-reports/TEST-com.vrushali.auditlog.ScenarioCIntegrationTest.xml` |
 
 ---
 
