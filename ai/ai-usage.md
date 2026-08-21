@@ -108,6 +108,30 @@
 
 ---
 
+**ID:** AI-015
+**Date:** 2026-08-21
+**Prompt:** Complete application testing and testing evidence for Scenarios A, B and C, including PostgreSQL, security, hash integrity, tamper detection and regression testing.
+**Summary:** Ran the existing suite before changes, confirmed the existing Scenario A tamper-detection test, added three focused Scenario B non-admin authorization tests, ran clean Maven verification, and recorded 35 passed tests, 0 failures/errors, and 38 Docker-skipped PostgreSQL tests in `docs/TESTING-EVIDENCE.md`.
+**Decision:** MODIFY
+
+---
+
+**ID:** AI-016
+**Date:** 2026-08-21
+**Prompt:** Resolve the Docker/Testcontainers test-environment blocker and complete the remaining Step 14 database-dependent testing.
+**Summary:** Confirmed that no usable Docker executable or `/var/run/docker.sock` is available, verified the existing PostgreSQL/Testcontainers configuration and dependencies, ran all Docker-independent tests with 35 passes and 0 failures/errors, and documented the 38 PostgreSQL/Testcontainers tests that remain blocked.
+**Decision:** MODIFY
+
+---
+
+**ID:** AI-017
+**Date:** 2026-08-21
+**Prompt:** Resolve the Docker/Testcontainers test-environment blocker and complete the remaining Step 14 database-dependent testing.
+**Summary:** Rechecked Docker availability, confirmed that the Docker CLI, Docker Desktop application, and Docker socket are unavailable, reran all 38 previously blocked tests and the complete Maven suite, and recorded 35 executable passes with all 38 PostgreSQL/Testcontainers tests still blocked.
+**Decision:** MODIFY
+
+---
+
 ## Template for New Entries
 
 **ID:** AI-XXX

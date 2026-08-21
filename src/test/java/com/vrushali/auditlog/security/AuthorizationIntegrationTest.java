@@ -144,6 +144,29 @@ class AuthorizationIntegrationTest {
     }
 
     @Test
+    void auditorJwt_deniedScenarioBExport() throws Exception {
+        mockMvc.perform(get("/api/v1/audit/export?resourceId=resource-1")
+               .with(jwt().authorities(new SimpleGrantedAuthority("AUDITOR"))))
+               .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void auditorJwt_deniedScenarioBRedaction() throws Exception {
+        mockMvc.perform(patch("/api/v1/audit/events/{id}/redact", UUID.randomUUID())
+               .with(jwt().authorities(new SimpleGrantedAuthority("AUDITOR")))
+               .contentType(MediaType.APPLICATION_JSON)
+               .content("{\"fields\":[\"email\"]}"))
+               .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void auditorJwt_deniedScenarioBRetentionTrigger() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/retention/run")
+               .with(jwt().authorities(new SimpleGrantedAuthority("AUDITOR"))))
+               .andExpect(status().isForbidden());
+    }
+
+    @Test
     void auditorJwt_forbiddenOnAdminVerifyEndpoint() throws Exception {
         mockMvc.perform(get("/api/v1/audit/verify")
                .with(jwt().authorities(new SimpleGrantedAuthority("AUDITOR"))))

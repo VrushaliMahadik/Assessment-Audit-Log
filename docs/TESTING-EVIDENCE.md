@@ -2,7 +2,9 @@
 
 **Project:** Audit Log Service  
 **Engineer:** Vrushali Mahadik  
-**Status:** Scenario C remains blocked by unresolved requirements. The Maven suite has been executed for regression evidence; Docker-backed integration tests remain environment-dependent.
+**Status:** Final Step 14 verification completed on 2026-08-21. All executable tests passed; PostgreSQL/Testcontainers tests were skipped because Docker is unavailable.
+
+Database-dependent integration tests could not be executed because Docker was unavailable in the current environment.
 
 ---
 
@@ -18,17 +20,160 @@ This document records actual validation evidence against the requirements define
 - `FAIL` must be recorded honestly when the test was executed and the actual result did not match.
 - Results must not be invented, assumed, or copied from similar tests.
 
-## Executed Regression Evidence — 2026-08-21
+## Final Step 14 Execution Evidence — 2026-08-21
 
-| Command | Actual result | Evidence |
-|---------|---------------|----------|
-| `./mvnw clean test -q` | PASS: 29 tests executed, 0 failures, 0 errors; 32 Docker-dependent integration tests skipped because Docker is unavailable | Maven Surefire XML reports under `target/surefire-reports/` |
-| Scenario A regression | PASS for the 0 non-container tests in the class; 23 PostgreSQL-backed tests skipped because Docker is unavailable | `ScenarioAIntegrationTest` Surefire report |
-| Scenario B regression | PASS: 3 tests, 0 failures, 0 errors | `ScenarioBServiceTest` Surefire report |
-| Authentication and authorization regression | PASS: 16 tests, 0 failures, 0 errors | `AuthenticationIntegrationTest` and `AuthorizationIntegrationTest` Surefire reports |
-| Database migration integration | 9 tests skipped because Docker is unavailable; no failures or errors | `DatabaseMigrationIntegrationTest` Surefire report |
+### Build
 
-Scenario C functional tests were not executed because the approved requirement remains PENDING CLARIFICATION. Adding executable tests would require inventing the behavior they are intended to verify. The clarification gate and normalized boundary are documented in `docs/SCENARIO-C-DESIGN.md`.
+| Command | Result | Evidence |
+|---------|--------|----------|
+| `./mvnw clean verify -q` | PASS | Maven exited with code 0 using Java 21.0.12 |
+| `./mvnw clean test -q` | PASS | Maven exited with code 0 using Java 21.0.12 |
+
+### Final Test Totals
+
+| Result | Count |
+|--------|-------|
+| Tests executed and passed | 35 |
+| Failures | 0 |
+| Errors | 0 |
+| Tests skipped | 38 |
+| Total discovered | 73 |
+
+Evidence source: Maven Surefire XML reports under `target/surefire-reports/`.
+
+### Unit Tests
+
+| Test class | Result |
+|------------|--------|
+| `HashServiceTest` | PASS: 9/9 |
+| `ScenarioBServiceTest` | PASS: 3/3 |
+| `ScenarioCServiceTest` | PASS: 1/1 |
+
+### Integration Tests
+
+| Test class | Result |
+|------------|--------|
+| `ScenarioAIntegrationTest` | 23 skipped because Docker is unavailable |
+| `ScenarioCIntegrationTest` | 6 skipped because Docker is unavailable |
+| `DatabaseMigrationIntegrationTest` | 9 skipped because Docker is unavailable |
+
+### Database and Migrations
+
+`DatabaseMigrationIntegrationTest` contains checks for Flyway table creation, required columns, hash-column types, timestamp type, JSONB payload type, primary key, sequence uniqueness, indexes, and insert/read behavior. All 9 database tests were skipped because Testcontainers could not find Docker. PostgreSQL was not replaced with H2 for these tests.
+
+### Authentication
+
+`AuthenticationIntegrationTest`: PASS, 5/5. Missing credentials and invalid tokens return 401; valid JWT requests authenticate successfully and expose the principal.
+
+### Authorization
+
+`AuthorizationIntegrationTest`: PASS, 16/16. Coverage includes allowed and denied Scenario A writes/reads, admin verification, Scenario B export/redaction/retention permissions, Scenario C write permission, and 401/403 boundaries.
+
+### Scenario A
+
+`ScenarioAIntegrationTest` covers creation, persistence, retrieval, unknown-resource handling, validation, filtering, pagination, deterministic ordering, genesis and previous-hash chaining, valid verification, read-only verification, auditor denial, and direct database tamper detection. All 23 tests were skipped because Docker is unavailable; no Scenario A test failed.
+
+### Scenario B
+
+`ScenarioBServiceTest`: PASS, 3/3 for redaction mapping, retention archival result, and self-contained export assembly. Authorization coverage for ADMIN access and AUDITOR denial of export, redaction, and retention also passed within `AuthorizationIntegrationTest`.
+
+### Scenario C
+
+`ScenarioCServiceTest`: PASS, 1/1 for fixed event/resource mapping and chain integration. `ScenarioCIntegrationTest` contains READ/WRITE happy paths, validation, authentication, query, and verification checks; all 6 were skipped because Docker is unavailable. Scenario C authorization checks passed within `AuthorizationIntegrationTest`.
+
+### Hash Integrity
+
+`HashServiceTest`: PASS, 9/9. Deterministic SHA-256 hashing, canonical key ordering, null/non-null payload behavior, field sensitivity, genesis value, and canonical field inclusion passed.
+
+### Tamper Detection
+
+The existing `verifyChain_afterDirectDatabaseTamper_detectsTampering` test creates a valid event, changes `actor_id` directly in PostgreSQL without changing `content_hash`, calls `GET /api/v1/audit/verify`, and asserts `valid=false`, the first inconsistent record, and `CONTENT_HASH_MISMATCH`. The test was not executable because Docker is unavailable; the assertion remains present and unchanged.
+
+### Regression
+
+The complete clean Maven verification passed with 35 executed tests and zero failures or errors. Scenario A, Scenario B, Scenario C, authentication, authorization, and hash-service suites all compiled successfully. PostgreSQL-dependent regression remains pending Docker availability.
+
+### Coverage
+
+No JaCoCo or other coverage plugin is configured in `pom.xml`. No coverage percentage was generated or claimed.
+
+### Repository Hygiene
+
+`.gitignore` already excludes `target/`, compiled artifacts, logs, environment files, IDE metadata, and Maven temporary files. No production secrets, `.env` files, or generated `target/` files were added.
+
+### Known Issues
+
+- Docker is unavailable in the current environment, so 38 PostgreSQL/Testcontainers tests could not execute. `docker` is not available as a usable command, and Testcontainers reports that `/var/run/docker.sock` does not exist.
+- No application or test defect was found during Step 14.
+
+The detailed historical test inventory below is retained for requirement traceability. This final execution section is authoritative for Step 14 results.
+
+## Step 14A Docker/Testcontainers Resolution — 2026-08-21
+
+### Environment Investigation
+
+| Check | Actual result |
+|-------|---------------|
+| Docker CLI availability | No usable `docker` executable was found on PATH |
+| Docker daemon/socket | Testcontainers could not find `/var/run/docker.sock` |
+| Testcontainers configuration | Correctly declares PostgreSQL 16 containers with `@Testcontainers(disabledWithoutDocker = true)` |
+| Maven dependencies | `spring-boot-testcontainers`, `testcontainers:postgresql`, and `testcontainers:junit-jupiter` are present with test scope |
+| PostgreSQL replacement | None; PostgreSQL/Testcontainers tests were not converted to H2 |
+
+**Root cause:** The host environment does not provide a Docker CLI/daemon or Docker socket. This is an environment limitation, not a Testcontainers or application configuration defect.
+
+### Executed Tests
+
+Command:
+
+```text
+./mvnw -Dtest=AuditLogApplicationTests,AuthenticationIntegrationTest,AuthorizationIntegrationTest,HashServiceTest,ScenarioBServiceTest,ScenarioCServiceTest test -q
+```
+
+Actual result: **35 tests passed, 0 failures, 0 errors**.
+
+The same Docker-independent test set was rerun for Step 14 finalization on 2026-08-21 with the same result: **35 passed, 0 failures, 0 errors**.
+
+### Blocked Tests
+
+Exactly **38 tests remain blocked** because Docker is unavailable:
+
+| Test class | Blocked tests | Reason |
+|------------|---------------|--------|
+| `ScenarioAIntegrationTest` | 23 | Requires PostgreSQL 16 Testcontainer |
+| `DatabaseMigrationIntegrationTest` | 9 | Requires PostgreSQL 16 Testcontainer for Flyway/schema validation |
+| `ScenarioCIntegrationTest` | 6 | Requires PostgreSQL 16 Testcontainer |
+
+These tests are not marked as passed. They must be rerun in an environment with Docker available.
+
+## Step 14C PostgreSQL Test Recheck — 2026-08-21
+
+### Docker/Testcontainers Result
+
+Docker was not available to the execution environment despite the task context indicating that it should be available:
+
+- `docker version` returned `docker: command not found`.
+- No Docker Desktop application was present at `/Applications/Docker.app`.
+- No Docker CLI was present at `/usr/local/bin/docker` or `/opt/homebrew/bin/docker`.
+- Testcontainers reported that no valid Docker environment was available and that `/var/run/docker.sock` does not exist.
+
+No workaround, database replacement, assertion change, or production change was made.
+
+### Previously Blocked Test Command
+
+```text
+./mvnw -Dtest=ScenarioAIntegrationTest,DatabaseMigrationIntegrationTest,ScenarioCIntegrationTest test -q
+```
+
+Actual result: **38 tests remained skipped** — Scenario A 23, database migrations 9, and Scenario C 6. No failures or errors were reported because the classes were skipped before execution.
+
+### Complete Suite Recheck
+
+```text
+./mvnw clean test -q
+```
+
+Actual result: **35 executable tests passed, 0 failures, 0 errors, and 38 PostgreSQL/Testcontainers tests skipped**.
 
 ---
 
@@ -82,9 +227,9 @@ For every completed test execution, record:
 | T-A-023 | REQ-A-022 | Scenario A — Query | Integration | Paginated response returns correct page and size | NOT RUN |
 | T-A-024 | REQ-A-023 | Scenario A — Query | Integration | Results are returned in deterministic order across multiple calls | NOT RUN |
 | T-A-025 | REQ-A-031, REQ-A-032, REQ-A-033 | Scenario A — Verify | Integration | Verify returns valid=true for an unmodified chain | NOT RUN |
-| T-A-026 | REQ-A-033, REQ-A-034, REQ-A-035, REQ-A-036 | Scenario A — Tamper | Integration | Verify detects direct database modification | NOT RUN |
-| T-A-027 | REQ-A-034 | Scenario A — Tamper | Integration | First inconsistent record is correctly identified | NOT RUN |
-| T-A-028 | REQ-A-035 | Scenario A — Tamper | Integration | Violation type is included in verify response | NOT RUN |
+| T-A-026 | REQ-A-033, REQ-A-034, REQ-A-035, REQ-A-036 | Scenario A — Tamper | Integration | Verify detects direct database modification | SKIPPED — Docker unavailable |
+| T-A-027 | REQ-A-034 | Scenario A — Tamper | Integration | First inconsistent record is correctly identified | SKIPPED — Docker unavailable |
+| T-A-028 | REQ-A-035 | Scenario A — Tamper | Integration | Violation type is included in verify response | SKIPPED — Docker unavailable |
 | T-B-001 | REQ-B-001, REQ-B-004 | Scenario B — Retention | Integration | Records outside retention window are archived/soft-deleted | NOT RUN |
 | T-B-002 | REQ-B-003 | Scenario B — Retention | Integration | Verify returns valid=true after legitimate archival | NOT RUN |
 | T-B-003 | REQ-B-005, REQ-B-006 | Scenario B — Redaction | Integration | Sensitive payload fields are redacted | NOT RUN |
@@ -92,7 +237,7 @@ For every completed test execution, record:
 | T-B-005 | REQ-B-009 | Scenario B — Export | Integration | Bulk export by resourceId returns correct records | NOT RUN |
 | T-B-006 | REQ-B-009 | Scenario B — Export | Integration | Bulk export by actorId returns correct records | NOT RUN |
 | T-B-007 | REQ-B-010, REQ-B-011, REQ-B-013 | Scenario B — Export | Manual | Exported file is independently verifiable without the running service | NOT RUN |
-| T-C-001 | REQ-C-* | Scenario C | TBD | Scenario C tests — PENDING CLARIFICATION | NOT RUN |
+| T-C-001 | REQ-C-* | Scenario C | Unit / Integration | Successful client-account READ/WRITE access recording and chain integration | PASS unit; integration skipped — Docker unavailable |
 | T-SEC-001 | SEC-001, SEC-007 | Authentication | Integration | Request with valid credentials to POST /audit succeeds | NOT RUN |
 | T-SEC-002 | SEC-007 | Authentication | Integration | Request without credentials returns 401 | NOT RUN |
 | T-SEC-003 | SEC-007 | Authentication | Integration | Request with invalid credentials returns 401 | NOT RUN |
